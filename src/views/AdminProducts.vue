@@ -1,0 +1,184 @@
+<template>
+  <div class="px-md-5">
+    <!-- Loading -->
+    <Loading :active="isLoading" :z-index="1060">
+    </Loading>
+    <!-- 產品頁面 -->
+    <div class="text-end mt-4 ">
+      <button class="btn btn-warning" type="button" @click="openModal(true)">
+        新增產品
+      </button>
+    </div>
+    <table class="table mt-4 ">
+      <thead>
+        <tr>
+          <th width="120">分類</th>
+          <th width="168">主圖</th>
+          <th >產品名稱</th>
+          <th width="120">原價</th>
+          <th width="120">售價</th>
+          <th width="100">是否啟用</th>
+          <th width="200">編輯</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in products" :key="item.id">
+          <td style="line-height: 150px;">
+              {{ item.category }}
+          </td>
+          <td style="background-size:cover;
+              background-postion:center;
+              width:150px; height:160px;"
+              :style="{backgroundImage: `url(${item.imageUrl})`}">
+            <div ></div>
+          </td>
+          <td style="line-height: 150px;">
+              {{ item.title }}
+          </td>
+          <td style="line-height: 150px;" class="text-right">
+            {{ $filters.currency(item.origin_price) }}
+          </td>
+          <td style="line-height: 150px;" class="text-right">
+            {{ $filters.currency(item.price) }}
+          </td>
+          <td style="line-height: 150px;">
+            <span v-if="item.is_enabled" class="text-success">啟用</span>
+            <span v-else>未啟用</span>
+          </td>
+          <td style="line-height: 150px;">
+            <div class="btn-group">
+              <button
+                class="btn btn-outline-primary btn-sm"
+                type="button"
+                @click="openModal(false, item)"
+              >
+                編輯
+              </button>
+              <button
+                class="btn btn-outline-danger btn-sm"
+                type="button"
+                @click="openDelProductModal(item)"
+              >
+                刪除
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- ProductModal -->
+    <ProductModal
+      @update-product="updateProduct"
+      :product="tempProduct"
+      :isNew="isNew"
+      ref="productModal"
+    ></ProductModal>
+    <!-- DelModal -->
+    <DelModal :item="tempProduct" ref="delModal" @del-item="delProduct"></DelModal>
+    <!-- PaginationView -->
+    <PaginationView :pages="pagination" @emit-pages="getProducts"></PaginationView>
+  </div>
+</template>
+<style lang="scss">
+</style>
+<script>
+import DelModal from '@/components/DelModal.vue'
+import PaginationView from '@/components/PaginationView.vue'
+import ProductModal from '@/components/ProductModal.vue'
+
+export default {
+  data () {
+    return {
+      products: [],
+      pagination: {},
+      tempProduct: {},
+      isNew: false,
+      isLoading: false,
+      status: {
+        fileUploading: false
+      },
+      modal: {
+        editModal: '',
+        delModal: ''
+      },
+      currentPage: 1
+    }
+  },
+  components: {
+    ProductModal,
+    DelModal,
+    PaginationView
+  },
+  inject: ['emitter'],
+  methods: {
+    getProducts (page = 1) {
+      this.currentPage = page
+      const api = `${process.env.VUE_APP_API}/api/${process.env.VUE_APP_PATH}/admin/products?page=${page}`
+      this.isLoading = true
+      this.$http.get(api).then((response) => {
+        this.products = response.data.products
+        this.pagination = response.data.pagination
+        this.isLoading = false
+      }).catch((error) => {
+        this.isLoading = false
+        this.$httpMessageState(error.response, '錯誤訊息')
+      })
+    },
+    openModal (isNew, item) {
+      if (isNew) {
+        this.tempProduct = {}
+        this.isNew = true
+      } else {
+        this.tempProduct = { ...item }
+        this.isNew = false
+      }
+      const productComponent = this.$refs.productModal
+      productComponent.openModal()
+    },
+    updateProduct (item) {
+      this.tempProduct = item
+      let api = `${process.env.VUE_APP_API}/api/${process.env.VUE_APP_PATH}/admin/product`
+      this.isLoading = true
+      let httpMethod = 'post'
+      let status = '新增產品'
+      if (!this.isNew) {
+        api = `${process.env.VUE_APP_API}/api/${process.env.VUE_APP_PATH}/admin/product/${this.tempProduct.id}`
+        httpMethod = 'put'
+        status = '更新產品'
+      }
+      const productComponent = this.$refs.productModal
+      this.$http[httpMethod](api, { data: this.tempProduct }).then((response) => {
+        this.isLoading = false
+        this.$httpMessageState(response, status)
+        productComponent.hideModal()
+        this.getProducts(this.currentPage)
+      }).catch((error) => {
+        this.isLoading = false
+        this.$httpMessageState(error.response, status)
+      })
+    },
+    openDelProductModal (item) {
+      this.tempProduct = { ...item }
+      const delComponent = this.$refs.delModal
+      delComponent.openModal()
+    },
+    delProduct () {
+      const url = `${process.env.VUE_APP_API}/api/${process.env.VUE_APP_PATH}/admin/product/${this.tempProduct.id}`
+      this.isLoading = true
+      this.$http.delete(url).then((response) => {
+        this.isLoading = false
+        this.$httpMessageState(response, '刪除產品')
+        const delComponent = this.$refs.delModal
+        delComponent.hideModal()
+        this.getProducts(this.currentPage)
+      }).catch((error) => {
+        this.isLoading = false
+        this.$httpMessageState(error.response, '刪除產品')
+      })
+    }
+  },
+  created () {
+    this.getProducts()
+  }
+}
+</script>
