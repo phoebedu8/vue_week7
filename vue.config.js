@@ -1,5 +1,5 @@
 module.exports = {
   publicPath: process.env.NODE_ENV === 'production'
-    ? '/vue_week7/'
+    ? '/vue_week7_re/'
     : '/'
 }
