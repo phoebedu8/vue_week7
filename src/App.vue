@@ -1,4 +1,4 @@
-<template>
+npm install<template>
 
   <router-view/>
 </template>
